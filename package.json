@@ -1,0 +1,10 @@
+{
+  "id": "com.ninjablocks.app.location",
+  "name": "Location Calibration App",
+  "version": "0.1.0",
+  "description": "Allow you to calibrate rooms using a Ninja BLE Tag",
+  "author": "Elliot Shepherd <elliot@ninjablocks.com>",
+  "keywords": ["location", "calibrate", "calibration", "position"],
+  "license": "MIT",
+  "files": []
+}
