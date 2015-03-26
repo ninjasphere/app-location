@@ -1,0 +1,8 @@
+{
+  "calibration": {
+    "minimumRssi": "The lowest RSSI we consider to be a tag sitting on top of the Spheramid",
+    "minimumRssi": -50,
+    "deviceHelpTimeout": "The time we wait without finding a tag before the help message is shown",
+    "deviceHelpTimeout": "30s"
+  }
+}

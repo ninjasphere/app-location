@@ -7,12 +7,16 @@ import (
 	"time"
 
 	"github.com/ninjasphere/app-location/calibration"
+	"github.com/ninjasphere/go-ninja/config"
 	"github.com/ninjasphere/go-ninja/logger"
 	"github.com/ninjasphere/go-ninja/model"
 	"github.com/ninjasphere/go-ninja/suit"
 )
 
 var log = logger.GetLogger("ui")
+
+var minimumRssi = config.MustInt("calibration.minimumRssi")
+var deviceHelpTimeout = config.MustDuration("calibration.deviceHelpTimeout")
 
 var locations = []*calibration.Location{
 	&calibration.Location{
@@ -242,7 +246,7 @@ func (c *CalibrationUI) calibrate(data map[string]string) (*suit.ConfigurationSc
 		},
 	}
 
-	if time.Since(startTime) > time.Second*5 {
+	if time.Since(startTime) > deviceHelpTimeout {
 		screen.Sections[0].Contents = append(screen.Sections[0].Contents, suit.Alert{
 			Title:        "Having trouble?",
 			Subtitle:     "Make sure you've placed a tag on top of the master sphere.",
