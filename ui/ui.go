@@ -148,10 +148,9 @@ func (c *CalibrationUI) listLocations() (*suit.ConfigurationScreen, error) {
 		DisplayIcon: "location-arrow",
 		Sections: []suit.Section{
 			suit.Section{
+				Title: "Which room would you like to calibrate?",
 				Contents: []suit.Typed{
-					suit.Alert{
-						Title: "Which room would you like to calibrate?",
-					},
+					c.getWaypointAlert(),
 
 					suit.ActionList{
 						Name:    "location",
@@ -190,6 +189,29 @@ func (c *CalibrationUI) listLocations() (*suit.ConfigurationScreen, error) {
 	return &screen, nil
 }
 
+func (c *CalibrationUI) getWaypointAlert() suit.Alert {
+	switch c.calibrationService.ConnectedWaypoints {
+	case 0:
+		return suit.Alert{
+			Title:        "There are no waypoints connected. Ensure they have power, and are within range of the Spheramid.",
+			DisplayClass: "danger",
+			DisplayIcon:  "exclamation-circle",
+		}
+	case 1:
+		return suit.Alert{
+			Title:        "There is only one waypoint connected. Proper calibration requires at least two.",
+			DisplayClass: "warning",
+			DisplayIcon:  "exclamation-circle",
+		}
+	default:
+		return suit.Alert{
+			Title:        fmt.Sprintf("You have %d waypoints connected.", c.calibrationService.ConnectedWaypoints),
+			DisplayClass: "success",
+			DisplayIcon:  "check-circle-o",
+		}
+	}
+}
+
 func (c *CalibrationUI) calibrate(data map[string]string) (*suit.ConfigurationScreen, error) {
 
 	var location *calibration.Location
@@ -207,9 +229,13 @@ func (c *CalibrationUI) calibrate(data map[string]string) (*suit.ConfigurationSc
 
 	startTime, _ := time.Parse(time.RFC3339, startTimeString)
 
-	if time.Since(startTime) > time.Second*10 {
-		// Just pretend they placed it for now.
-		return c.startCalibration(location, "my-fake-tag")
+	if time.Since(startTime) > time.Second*2 { // Don't find device immediately, so we can at least show the screen once
+
+		device := c.calibrationService.GetCalibrationDevice(minimumRssi, time.Second*10)
+
+		if device != "" {
+			return c.startCalibration(location, device)
+		}
 	}
 
 	log.Infof("Calibrating location: %s", location.Name)
@@ -220,6 +246,9 @@ func (c *CalibrationUI) calibrate(data map[string]string) (*suit.ConfigurationSc
 		Sections: []suit.Section{
 			suit.Section{
 				Contents: []suit.Typed{
+
+					c.getWaypointAlert(),
+
 					suit.InputHidden{
 						Name:  "location",
 						Value: location.ID,
@@ -237,7 +266,7 @@ func (c *CalibrationUI) calibrate(data map[string]string) (*suit.ConfigurationSc
 		Actions: []suit.Typed{
 			suit.AutomaticAction{
 				Name:  "calibrate",
-				Delay: 1000,
+				Delay: 0,
 			},
 			suit.ReplyAction{
 				Name:  "listLocations",
@@ -262,6 +291,7 @@ func (c *CalibrationUI) startCalibration(location *calibration.Location, tagID s
 	log.Infof("Starting calibration of location %s using tag %s", location.Name, tagID)
 
 	calibrationID := "my-calibration"
+	progress[calibrationID] = 0
 
 	screen := suit.ConfigurationScreen{
 		Title:       "Starting calibration...",
@@ -269,9 +299,12 @@ func (c *CalibrationUI) startCalibration(location *calibration.Location, tagID s
 		Sections: []suit.Section{
 			suit.Section{
 				Contents: []suit.Typed{
+					c.getWaypointAlert(),
+
 					suit.Alert{
 						Title: fmt.Sprintf("Starting calibration of location %s using tag %s", location.Name, tagID),
 					},
+
 					suit.InputHidden{
 						Name:  "calibration",
 						Value: calibrationID,
@@ -330,6 +363,7 @@ func (c *CalibrationUI) status(calibrationID string) (*suit.ConfigurationScreen,
 		Sections: []suit.Section{
 			suit.Section{
 				Contents: []suit.Typed{
+					c.getWaypointAlert(),
 					suit.Alert{
 						Title: fmt.Sprintf("%d%% complete...", progress[calibrationID]),
 					},
