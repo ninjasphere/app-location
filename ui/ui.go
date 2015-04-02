@@ -100,6 +100,7 @@ func (c *CalibrationUI) clear(locationID string) (*suit.ConfigurationScreen, err
 	for _, location := range locations {
 		if location.ID == locationID {
 			location.Quality = 0
+			c.calibrationService.ClearLocation(locationID)
 		}
 	}
 	return c.listLocations()
@@ -112,6 +113,8 @@ func (c *CalibrationUI) clearAll() (*suit.ConfigurationScreen, error) {
 
 		location.Quality = 0
 	}
+
+	c.calibrationService.ClearAll()
 
 	return c.listLocations()
 }

@@ -11,10 +11,12 @@ import (
 var log = logger.GetLogger("calibration")
 
 type Service struct {
-	conn               *ninja.Connection
-	roomModel          *ninja.ServiceClient
-	calibrationService *ninja.ServiceClient
-	ConnectedWaypoints int
+	conn                        *ninja.Connection
+	roomModel                   *ninja.ServiceClient
+	calibrationService          *ninja.ServiceClient
+	calibrationFlushUserService *ninja.ServiceClient
+	calibrationFlushZoneService *ninja.ServiceClient
+	ConnectedWaypoints          int
 }
 
 type Status struct {
@@ -24,9 +26,11 @@ type Status struct {
 func NewService(conn *ninja.Connection) *Service {
 
 	service := &Service{
-		conn:               conn,
-		roomModel:          conn.GetServiceClient("$home/services/RoomModel"),
-		calibrationService: conn.GetServiceClient("$i/dont/know/what/this/is"),
+		conn:                        conn,
+		roomModel:                   conn.GetServiceClient("$home/services/RoomModel"),
+		calibrationService:          conn.GetServiceClient("$ninja/services/rpc/Location/calibrationScore"),
+		calibrationFlushUserService: conn.GetServiceClient("$ninja/services/rpc/Location/flushuser"),
+		calibrationFlushZoneService: conn.GetServiceClient("$ninja/services/rpc/Location/flushzone"),
 	}
 
 	conn.SubscribeRaw("$location/waypoints", func(waypoints *[]int, values map[string]string) bool {
@@ -41,7 +45,21 @@ func NewService(conn *ninja.Connection) *Service {
 }
 
 func (s *Service) getCalibrationScores() (scores map[string]float64, err error) {
-	err = s.calibrationService.Call("fetch", config.MustString("user"), &scores, time.Second*15)
+	err = s.calibrationService.Call("Location.calibrationScore", []interface{}{config.MustString("userId")}, &scores, time.Second*15)
+
+	return
+}
+
+func (s *Service) doFlushUser() (result map[string]interface{}, err error) {
+	log.Debugf("location.flushuser")
+	err = s.calibrationFlushUserService.Call("Location.flushuser", []interface{}{}, &result, time.Second*15)
+
+	return
+}
+
+func (s *Service) doFlushZone(zone string) (result map[string]interface{}, err error) {
+	log.Debugf("location.flushzone zone=%s", zone)
+	err = s.calibrationFlushZoneService.Call("Location.flushzone", []interface{}{zone}, &result, time.Second*15)
 
 	return
 }
@@ -51,6 +69,24 @@ type RSSI struct {
 	Waypoint string `json:"waypoint"`
 	RSSI     int    `json:"rssi"`
 	IsSphere bool   `json:"isSphere"`
+}
+
+// ClearAll clear all calibration for this user.
+func (s *Service) ClearAll() {
+	res, err := s.doFlushUser()
+	if err != nil {
+		log.Errorf("failed to clear all err: %s", err)
+	}
+	log.Infof("doFlushUser: %v", res)
+}
+
+// ClearAll clear all calibration for this user.
+func (s *Service) ClearLocation(locationID string) {
+	res, err := s.doFlushZone(locationID)
+	if err != nil {
+		log.Errorf("failed to clear all err: %s", err)
+	}
+	log.Infof("doFlushZone: %v", res)
 }
 
 func (s *Service) GetCalibrationDevice(minimumRssi int, timeout time.Duration) string {
